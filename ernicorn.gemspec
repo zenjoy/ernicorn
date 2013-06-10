@@ -27,7 +27,6 @@ Gem::Specification.new do |s|
   s.files         = `git ls-files`.split("\n") - %w[Gemfile Gemfile.lock]
   s.test_files    = `git ls-files -- test`.split("\n").select { |f| f =~ /_test.rb$/ }
 
-  s.bindir        = "bin"
   s.executables   = %w[ernicorn ernicorn-ctrl]
   s.require_paths = %w[lib]
   s.extra_rdoc_files = %w[LICENSE README.md]
