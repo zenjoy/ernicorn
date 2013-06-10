@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+#/ Usage: ernicorn [options] [config file]
+#/ Start a Ruby BERT-RPC Server with the given options and config file.
+#/
+#/ Options
+#/   -h, --host=<host>          Server address to listen on; default: 0.0.0.0
+#/   -p, --port=<portno>        Server port to listen on; default: 8149
+#/   -l, --listen=<host>:<port> Listen addresses. Can be specified multiple times
+#/       --log-level=0-4        Set the log level
+#/   -d, --detached             Run as a daemon
+#/   -P, --pidfile=<file>       Location to write pid file
+#/
+#/ See https://github.com/github/ernicorn for more information.
+require 'optparse'
+
+# load unicorn server extensions
+require 'ernicorn'
+require 'ernicorn/server'
+require 'ernicorn/adminrpc'
+
+# command line options
+host = nil
+port = nil
+listeners = []
+daemonize = false
+config = 'config/ernicorn.rb'
+pidfile = nil
+user = nil
+
+parser = OptionParser.new do |opts|
+  opts.on("-c", "--config=val", String)      { |param| config = param }
+  opts.on("-h", "--host=val", String)        { |param| host = param}
+  opts.on("-p", "--port=val", Integer)       { |param| port = param }
+  opts.on("-l", "--listen=val", String)      { |addr| listeners << addr }
+  opts.on(      "--log-level=val", Integer)  { |val| Ernicorn.loglevel(val) }
+  opts.on("-d", "--daemonize")               { |param| daemonize = param }
+  opts.on("-u", "--user=val")                { |param| user = param }
+  opts.on("-P", "--pidfile=val")             { |param| pidfile = param }
+  opts.on_tail("-h", "--help")               { exec "grep ^#/<'#{__FILE__}'|cut -c4-" }
+  opts.parse!
+end
+
+listeners << "#{host || '0.0.0.0'}:#{port || 8149}" if host || port
+
+config = config || ARGV[0]
+
+options = {
+  :pid         => pidfile,
+  :listeners   => listeners,
+  :config_file => File.expand_path(config)
+}
+
+if Process.uid == 0 && user
+  Process.uid = Etc.getpwnam(user).uid
+end
+
+if daemonize
+  require 'unicorn/launcher'
+  Unicorn::Launcher.daemonize!(options)
+end
+
+$ernicorn = Ernicorn::Server.new(nil, options)
+$ernicorn.start.join
